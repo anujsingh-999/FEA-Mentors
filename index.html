@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FEA Mentor Reflection</title>
+    <!-- Load Tailwind CSS -->
+    <script src=https://cdn.tailwindcss.com></script>
+    <style>
+        /* Custom font for a more reflective feel */
+        @import url('https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,300;0,400;0,700;1,300&display=swap');
+ 
+        /* --- Updated Blue/White Color Scheme --- */
+        :root {
+            --socrates-bg: #FFFFFF; /* Pure White for chat area */
+            --socrates-text: #1F2937; /* Dark Gray for calm text */
+            --primary-color: #3B82F6; /* Friendly, professional Blue */
+            --clarity-color: #1D4ED8; /* Darker Blue for button contrast */
+            --link-color: #2563EB;
+        }
+ 
+        body {
+            font-family: 'Merriweather', serif;
+            background-color: #F3F4F6; /* Very light gray background */
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px;
+        }
+ 
+        .chat-container {
+            max-width: 800px;
+            width: 100%;
+            height: 85vh; /* Fixed height for chat area */
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #c9d5e3;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            background-color: white;
+            overflow: hidden;
+        }
+ 
+        .chat-area {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto;
+            border-bottom: 1px solid #e0e0e0;
+            background-color: var(--socrates-bg);
+        }
+ 
+        .message-bubble {
+            max-width: 85%;
+            padding: 12px 16px;
+            margin-bottom: 15px;
+            border-radius: 18px;
+            line-height: 1.6;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            transition: all 0.2s ease-in-out;
+        }
+ 
+        .socrates-message {
+            background-color: white;
+            color: var(--socrates-text);
+            border: 1px solid #E5E7EB; /* Subtle border on mentor messages */
+            border-top-left-radius: 2px;
+            margin-right: auto;
+            position: relative;
+            animation: fadeIn 0.5s ease-out;
+        }
+ 
+        .user-message {
+            background-color: var(--primary-color);
+            color: white;
+            border-top-right-radius: 2px;
+            margin-left: auto;
+            animation: fadeIn 0.5s ease-out;
+        }
+ 
+        .speak-btn {
+            flex-shrink: 0;
+            cursor: pointer;
+            transition: color 0.15s;
+        }
+ 
+        .chat-input-area {
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background-color: white;
+            border-top: 1px solid #e0e0e0;
+            flex-wrap: wrap; /* Allow wrapping on small screens */
+        }
+ 
+        .input-field {
+            flex-grow: 1;
+            min-width: 150px;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            padding: 12px;
+            transition: border-color 0.3s;
+        }
+ 
+        .input-field:focus {
+            border-color: var(--primary-color);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); /* Blue shadow */
+        }
+ 
+        .file-icon {
+            color: var(--primary-color);
+        }
+ 
+        /* --- Button Styling for Blue Theme --- */
+        .send-button {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 12px 14px;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: background-color 0.2s, transform 0.1s;
+            white-space: nowrap;
+        }
+        .send-button:hover:not(:disabled) {
+            background-color: var(--clarity-color); /* Use darker blue on hover */
+        }
+ 
+        .send-button:disabled {
+            background-color: #9CA3AF;
+            cursor: not-allowed;
+        }
+ 
+        /* Responsive adjustments for alignment */
+        @media (max-width: 600px) {
+            .chat-container {
+                height: 90vh;
+                margin-top: 0;
+                border-radius: 0;
+            }
+            body {
+                padding: 0;
+                align-items: stretch;
+            }
+            .chat-input-area {
+                padding: 10px;
+            }
+            .mentor-selection-header {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+ 
+        /* Animation keyframes */
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+       
+        /* Word Highlighting for TTS */
+        .word-to-highlight {
+            transition: color 0.1s, background-color 0.1s;
+        }
+ 
+        .socrates-message .highlighted-word {
+            background-color: #FEE2E2; /* Very light red/pink highlight */
+            color: #991B1B; /* Darker red text */
+            padding: 2px 0;
+            border-radius: 3px;
+        }
+        /* Loading Spinner for buttons */
+        .loading-spinner {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid var(--primary-color);
+            border-radius: 50%;
+            width: 1em;
+            height: 1em;
+            animation: spin 1s linear infinite;
+            display: none;
+        }
+ 
+    </style>
+</head>
+<body>
+ 
+    <div id="app" class="chat-container">
+        <!-- Header -->
+        <header class="p-4 border-b border-gray-200 bg-white rounded-t-xl">
+            <h1 class="text-2xl font-bold text-gray-800 tracking-tight text-center">FEA Mentors</h1>
+            <div class="flex flex-col sm:flex-row justify-center items-center mt-3 mentor-selection-header">
+                <label for="mentor-select" class="text-sm text-gray-600 mr-2 mb-1 sm:mb-0">Select Your Mentor</label>
+                <div class="select-wrapper w-full sm:w-auto">
+                    <select id="mentor-select" class="mentor-select" onchange="handleMentorChange()">
+                        <!-- Options populated by JavaScript -->
+                    </select>
+                </div>
+            </div>
+        </header>
+ 
+        <!-- Chat Area -->
+        <div id="chat-area" class="chat-area flex flex-col space-y-3">
+            <!-- Messages go here -->
+        </div>
+ 
+        <!-- File Name Display -->
+        <p id="file-name-display" class="text-xs text-gray-500 px-5 pt-2 text-right hidden"></p>
+ 
+        <!-- Input Area -->
+        <div class="chat-input-area">
+            <div id="file-upload-wrapper">
+                <label for="file-input" class="cursor-pointer flex items-center justify-center p-3 rounded-full hover:bg-gray-100 transition duration-150">
+                    <!-- Lucide File Text Icon -->
+                    <svg class="w-6 h-6 file-icon" xmlns=http://www.w3.org/2000/svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
+                </label>
+                <input type="file" id="file-input" class="hidden" accept=".txt,.md,.log,.csv">
+            </div>
+           
+            <input type="text" id="user-input" class="input-field" placeholder="Share a problem or question...">
+           
+            <!-- Microphone Button for STT -->
+            <button id="mic-btn" class="p-3 rounded-full text-gray-400 hover:text-primary-color transition duration-150" onclick="startListening()">
+                <!-- Mic Icon SVG -->
+                <svg id="mic-icon" xmlns=http://www.w3.org/2000/svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+            </button>
+           
+            <!-- Send Button -->
+            <button id="send-btn" class="send-button flex items-center justify-center" onclick="sendMessage()">
+                <span id="btn-text">Reflect</span>
+                <div id="loading-indicator" class="loading-spinner ml-2"></div>
+            </button>
+        </div>
+    </div>
+ 
+    <script>
+        // --- Gemini API Configuration ---
+        const API_URL_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/';
+        const MODEL_NAME = 'gemini-2.5-flash-preview-09-2025';
+        const TTS_MODEL_NAME = "gemini-2.5-flash-preview-tts";
+       
+        // --- Mentor Data ---
+        const MENTORS = [
+            {
+                name: "Akshay Pratap Singh",
+                id: "akshay",
+                voice: "Algenib",
+                greeting: "Hello! What dilemma is resting upon your heart today? Let us explore your thoughts together to find the truth that lies within you.",
+                instruction: `
+                    **Mentor Profile: Akshay Pratap Singh (Socratic Reflector)**
+                    - **Persona:** Friendly, accessible, philosophical, and encouraging.
+                    - **Core Method:** Socratic Method. Do not give direct answers. Help the user discover their own truth by asking simple, reflective questions.
+                   
+                    // ----------------------------------------------------------------------
+                    // PLACE YOUR FEA ORGANIZATION FOCUS AND KEY VALUES HERE (OPTION 1)
+                    // ----------------------------------------------------------------------
+                    - **FEA Organization Context (EDIT THIS SECTION):** - FEA Focus: developing leadership in underserved communities.
+                        - Key Values: Integrity, Community, Innovation.
+                    // ----------------------------------------------------------------------
+                   
+                    - **Response Style:** - Tone: Warm, use easy-to-understand English.
+                        - Length Limit: Responses must be no longer than **50 words**.
+                        - Content: Always frame questions to encourage introspection and connection to personal purpose or organizational values (if relevant).
+                        - **Flow Question (NEW):** Crucially, end your response with one simple, open-ended question that encourages the user to continue reflecting on the core issue.
+                `
+            },
+            {
+                name: "Deepak Chopra",
+                id: "deepak",
+                voice: "Kore",
+                greeting: "Namaste. I hear you, and this challenge is solvable. We can find a clear path forward by breaking it down into simple, manageable steps.",
+                instruction: `
+                    **Mentor Profile: Deepak Chopra (Goal-Oriented Coach)**
+                    - **Persona:** Empathetic, practical, results-oriented, and positive.
+                    - **Core Method:** Action-Oriented Coaching. Focus on defining the immediate next step and clear, simple outcomes.
+                   
+                    // ----------------------------------------------------------------------
+                    // PLACE YOUR FEA ORGANIZATION FOCUS AND KEY VALUES HERE (OPTION 1)
+                    // ----------------------------------------------------------------------
+                    - **FEA Organization Context (EDIT THIS SECTION):** - FEA Focus: fostering ethical finance.
+                        - Key Values: Integrity, Community, Innovation.
+                    // ----------------------------------------------------------------------
+ 
+                    - **Response Style:** - Tone: Warm, use simple, straightforward English.
+                        - Length Limit: Responses must be no longer than **50 words**.
+                        - Content: Guide the user to define the very **next physical, immediate action** required to move forward. Avoid abstract discussion.
+                        - **Flow Question (NEW):** Crucially, end your response with one simple, action-oriented question that prompts the user to define their immediate next step.
+                `
+            },
+            {
+                name: "Anmol Singh",
+                id: "anmol",
+                voice: "Rasalgethi",
+                greeting: "Welcome. Take a deep breath. Let us calmly see what you can truly control here and what you must accept with tranquility.",
+                instruction: `
+                    **Mentor Profile: Anmol Singh (Stoic Guide)**
+                    - **Persona:** Calm, deeply accessible, and focused on inner resilience.
+                    - **Core Method:** Stoicism/Dichotomy of Control. Help the user separate what they can influence (their judgment and action) from what they cannot (external events, other people's actions).
+                   
+                    // ----------------------------------------------------------------------
+                    // PLACE YOUR FEA ORGANIZATION FOCUS AND KEY VALUES HERE (OPTION 1)
+                    // ----------------------------------------------------------------------
+                    - **FEA Organization Context (EDIT THIS SECTION):** - FEA Focus: fostering ethical finance.
+                        - Key Values: Integrity, Community, Innovation.
+                    // ----------------------------------------------------------------------
+ 
+                    - **Response Style:** - Tone: Calm, reassuring, and direct.
+                        - Length Limit: Responses must be no longer than **50 words**.
+                        - Content: Guide the user to focus only on their own actions and perspective, encouraging acceptance of external factors and fostering inner peace.
+                        - **Flow Question (NEW):** Crucially, end your response with one simple, reflective question that helps the user distinguish between controllable and uncontrollable elements.
+                `
+            },
+            {
+                name: "Neetu Mann",
+                id: "neetu",
+                voice: "Vindemiatrix", // Gentle female voice
+                greeting: "It's good to see you. Tell me what's going on. We'll look at the best way to handle this and find a balanced, kind, and effective path forward.",
+                instruction: `
+                    **Mentor Profile: Neetu Mann (Aristotelian Philosopher)**
+                    - **Persona:** Empathetic, gentle, and focused on practical wisdom and ethics.
+                    - **Core Method:** Practical Wisdom (Phronesis). Guide the user toward the "golden mean" or the balanced, virtuous approach between two extremes (e.g., courage is the mean between cowardice and rashness).
+                   
+                    // ----------------------------------------------------------------------
+                    // PLACE YOUR FEA ORGANIZATION FOCUS AND KEY VALUES HERE (OPTION 1)
+                    // ----------------------------------------------------------------------
+                    - **FEA Organization Context (EDIT THIS SECTION):** - FEA Focus: developing leadership in underserved communities.
+                       - Key Values: Integrity, Community, Innovation.
+                    // ----------------------------------------------------------------------
+ 
+                    - **Response Style:** - Tone: Gentle, encouraging, and kind.
+                        - Length Limit: Responses must be no longer than **50 words**.
+                        - Content: Focus on finding **balance** in the decision and identifying the virtuous course of action.
+                        - **Flow Question (NEW):** Crucially, end your response with one simple question that steers the user toward finding a balanced, virtuous approach (the 'golden mean').
+                `
+            }
+        ];
+       
+        // --- Global State ---
+        let currentMentor = MENTORS[0]; // Default to Akshay Pratap Singh
+       
+        const MAX_FILE_SIZE_MB = 1;
+        const apiKey = ""
+        window.currentAudio = null;
+        let highlightInterval = null;
+        let attachedFileContent = null;
+       
+        // --- DOM Elements ---
+        const chatArea = document.getElementById('chat-area');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-btn');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const btnText = document.getElementById('btn-text');
+        const fileInput = document.getElementById('file-input');
+        const fileNameDisplay = document.getElementById('file-name-display');
+        const micButton = document.getElementById('mic-btn');
+        const micIcon = document.getElementById('mic-icon');
+        const mentorSelect = document.getElementById('mentor-select');
+ 
+
+        // --- Speech-to-Text (STT) Setup ---
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition = null;
+        let isListening = false;
+ 
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.lang = 'en-US';
+ 
+            recognition.onstart = function() {
+                isListening = true;
+                micIcon.classList.add('mic-recording');
+                userInput.placeholder = "Listening... Speak now...";
+                setLoadingState(true);
+            };
+ 
+            recognition.onresult = function(event) {
+                const transcript = event.results[0][0].transcript;
+                userInput.value = transcript;
+            };
+ 
+            recognition.onerror = function(event) {
+                console.error('Speech recognition error:', event.error);
+                isListening = false;
+                micIcon.classList.remove('mic-recording');
+                setLoadingState(false);
+ 
+                let placeholderText = "Share a problem or question...";
+ 
+                if (event.error === 'not-allowed' || event.error === 'permission-denied') {
+                    placeholderText = "Error: Microphone permission was denied.";
+                } else if (event.error === 'audio-capture' || event.error === 'service-not-allowed') {
+                    placeholderText = "Error: Audio capture failed (check HTTPS/Mic usage).";
+                } else if (event.error === 'aborted' || event.error === 'no-speech') {
+                    placeholderText = "Timed out. Try speaking immediately after clicking.";
+                }
+ 
+                userInput.placeholder = placeholderText;
+            };
+ 
+            recognition.onend = function() {
+                isListening = false;
+                micIcon.classList.remove('mic-recording');
+                userInput.placeholder = "Share a problem or question...";
+                setLoadingState(false);
+               
+                if (userInput.value.trim().length > 0) {
+                    sendMessage();
+                }
+            };
+        } else {
+            micButton.disabled = true;
+            micButton.title = "Voice input is not supported by this browser.";
+            micButton.classList.add('opacity-50');
+            console.warn("SpeechRecognition not supported in this browser.");
+        }
+ 
+        function startListening() {
+            if (!recognition) return;
+ 
+            // Stop any playing audio if the user starts talking
+            stopCurrentAudio();
+ 
+            if (isListening) {
+                recognition.stop();
+            } else {
+                userInput.value = '';
+                try {
+                    recognition.start();
+                } catch (e) {
+                    if (e.name !== "InvalidStateError") {
+                        console.error("Failed to start recognition:", e);
+                    }
+                }
+            }
+        }
+       
+        function stopCurrentAudio() {
+            if (window.currentAudio) {
+                window.currentAudio.pause();
+                window.currentAudio.currentTime = 0;
+                window.currentAudio = null;
+                clearInterval(highlightInterval);
+                document.querySelectorAll('.word-to-highlight').forEach(span => span.classList.remove('highlighted-word'));
+               
+                // Reset any buttons that were in 'playing' state (visually)
+                document.querySelectorAll('.speak-btn').forEach(btn => {
+                    // Check if it's currently a loading spinner (which we use for TTS speaking)
+                    if(btn.querySelector('.loading-spinner')) {
+                        btn.disabled = false;
+                        btn.innerHTML = '<svg xmlns=http://www.w3.org/2000/svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="speaker-icon"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a4.99 4.99 0 0 1 0 7.07"></path></svg>';
+                    }
+                });
+            }
+        }
+ 
+
+        // --- Utility Functions for TTS (PCM to WAV conversion) ---
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+ 
+        function base64ToArrayBuffer(base64) {
+            const binaryString = atob(base64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+ 
+        function pcmToWav(pcmData, sampleRate) {
+            const numChannels = 1;
+            const bitsPerSample = 16;
+            const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+            const blockAlign = numChannels * (bitsPerSample / 8);
+ 
+            const dataLength = pcmData.length * 2;
+            const buffer = new ArrayBuffer(44 + dataLength);
+            const view = new DataView(buffer);
+ 
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + dataLength, true);
+            writeString(view, 8, 'WAVE');
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, numChannels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, byteRate, true);
+            view.setUint16(32, blockAlign, true);
+            view.setUint16(34, bitsPerSample, true);
+            writeString(view, 36, 'data');
+            view.setUint32(40, dataLength, true);
+ 
+            let offset = 44;
+            for (let i = 0; i < pcmData.length; i++) {
+                view.setInt16(offset, pcmData[i], true);
+                offset += 2;
+            }
+ 
+            return new Blob([view], { type: 'audio/wav' });
+        }
+ 
+        function wrapWordsForHighlighting(text) {
+            // Regex to split by whitespace but keep HTML tags and punctuation attached to words.
+            return text.split(/(\s+)/).map((part, index) => {
+                if (part.match(/\s+/)) return part;
+ 
+                if (part.length > 0) {
+                    // Use a more unique ID system or simpler approach
+                    return `<span id="word-id-${Date.now()}-${index}" class="word-to-highlight">${part}</span>`;
+                }
+                return "";
+            }).join('');
+        }
+       
+        /**
+         * Calls the TTS API, generates audio, and plays it, with highlighting.
+         */
+        async function speakSocratesResponse(text, voiceName, buttonElement = null, bubbleElement = null) {
+            if (text.trim() === "") return;
+ 
+            if (buttonElement) {
+                buttonElement.disabled = true;
+                buttonElement.innerHTML = '<div class="w-4 h-4 loading-spinner"></div>';
+                buttonElement.querySelector('.loading-spinner').style.display = 'block';
+            }
+           
+            // Stop any playing audio if the user starts a new one
+            stopCurrentAudio();
+ 
+            let audioUrl = null;
+            let errorOccurred = false;
+ 
+            try {
+                const apiUrl = `${API_URL_BASE}${TTS_MODEL_NAME}:generateContent?key=${apiKey}`;
+ 
+                const payload = {
+                    contents: [{ parts: [{ text: text }] }],
+                    generationConfig: {
+                        responseModalities: ["AUDIO"],
+                        speechConfig: {
+                            voiceConfig: {
+                                prebuiltVoiceConfig: { voiceName: voiceName }
+                            }
+                        }
+                    },
+                    model: TTS_MODEL_NAME
+                };
+ 
+                const MAX_RETRIES = 3;
+                for (let i = 0; i < MAX_RETRIES; i++) {
+                    try {
+                        const response = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+ 
+                        if (!response.ok) {
+                            throw new Error(`TTS API error: ${response.statusText}`);
+                        }
+ 
+                        const result = await response.json();
+                        const part = result?.candidates?.[0]?.content?.parts?.[0];
+                        const audioData = part?.inlineData?.data;
+                       const mimeType = part?.inlineData?.mimeType;
+ 
+                        if (audioData && mimeType && mimeType.startsWith("audio/")) {
+                            const sampleRateMatch = mimeType.match(/rate=(\d+)/);
+                            const sampleRate = sampleRateMatch ? parseInt(sampleRateMatch[1], 10) : 16000;
+ 
+                            const pcmDataBuffer = base64ToArrayBuffer(audioData);
+                            const pcm16 = new Int16Array(pcmDataBuffer);
+                            const wavBlob = pcmToWav(pcm16, sampleRate);
+                            audioUrl = URL.createObjectURL(wavBlob);
+                            break; // Success
+                        } else {
+                            console.error("TTS response structure unexpected or audio data missing:", result);
+                            errorOccurred = true;
+                            break;
+                        }
+                    } catch (error) {
+                        console.error(`TTS Attempt ${i + 1} failed:`, error);
+                        if (i < MAX_RETRIES - 1) {
+                            const delay = Math.pow(2, i) * 1000;
+                            await new Promise(resolve => setTimeout(resolve, delay));
+                        } else {
+                            errorOccurred = true;
+                            break;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error("Fatal TTS API Error:", error);
+                errorOccurred = true;
+            } finally {
+                // Reset button state
+                if (buttonElement) {
+                    buttonElement.disabled = false;
+                    buttonElement.innerHTML = '<svg xmlns=http://www.w3.org/2000/svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="speaker-icon"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a4.99 4.99 0 0 1 0 7.07"></path></svg>';
+                    if (errorOccurred) {
+                        buttonElement.classList.add('text-red-500'); // Indicate an error visually
+                        setTimeout(() => buttonElement.classList.remove('text-red-500'), 2000);
+                    }
+                }
+ 
+                if (audioUrl && bubbleElement) {
+                    const audio = new Audio(audioUrl);
+                    window.currentAudio = audio; // Global reference for stopping
+                   
+                    audio.onloadedmetadata = function() {
+                        const totalDuration = audio.duration;
+                        const wordSpans = bubbleElement.querySelectorAll('.word-to-highlight');
+                        const wordCount = wordSpans.length;
+                       
+                        // Use a conservative time estimate per word since we don't have accurate word timings
+                        const timePerWordMs = (totalDuration * 1000) / (wordCount || 1); 
+ 
+                        if (wordCount > 0) {
+                            let currentWordIndex = 0;
+                           
+                            wordSpans.forEach(span => span.classList.remove('highlighted-word'));
+ 
+                            highlightInterval = setInterval(() => {
+                                // Remove highlight from previous word
+                                if (currentWordIndex > 0 && wordSpans[currentWordIndex - 1]) {
+                                    wordSpans[currentWordIndex - 1].classList.remove('highlighted-word');
+                                }
+                               
+                                // Add highlight to current word
+                                if (currentWordIndex < wordCount && wordSpans[currentWordIndex]) {
+                                    wordSpans[currentWordIndex].classList.add('highlighted-word');
+                                    currentWordIndex++;
+                                }
+                            }, timePerWordMs);
+                        }
+                       
+                        audio.play();
+                    };
+ 
+                    audio.onended = () => {
+                        URL.revokeObjectURL(audioUrl);
+                        window.currentAudio = null;
+                        clearInterval(highlightInterval);
+                        if (bubbleElement) {
+                            bubbleElement.querySelectorAll('.word-to-highlight').forEach(span => span.classList.remove('highlighted-word'));
+                        }
+                    };
+                   
+                    audio.onerror = () => {
+                        clearInterval(highlightInterval);
+                        window.currentAudio = null;
+                        URL.revokeObjectURL(audioUrl);
+                        console.error("Audio playback error.");
+                    }
+                }
+            }
+        }
+ 
+        /**
+         * Handler for the speak button click event.
+         */
+        function speakFromElement(buttonElement) {
+            const bubble = buttonElement.closest('.socrates-message');
+            // Get the plain text for the API call
+            const textToSpeak = bubble.querySelector('.socrates-text-content p').textContent;
+            
+            // Use the current voice state
+            speakSocratesResponse(textToSpeak, currentMentor.voice, buttonElement, bubble);
+        }
+ 
+        // --- Mentor Selection Logic ---
+ 
+        function populateMentorDropdown() {
+            MENTORS.forEach(mentor => {
+                const option = document.createElement('option');
+                option.value = mentor.id;
+                option.textContent = mentor.name;
+                mentorSelect.appendChild(option);
+            });
+            // Set the default selection
+            mentorSelect.value = currentMentor.id;
+        }
+ 
+        function handleMentorChange() {
+            const selectedId = mentorSelect.value;
+            const newMentor = MENTORS.find(m => m.id === selectedId);
+           
+            if (newMentor && newMentor.id !== currentMentor.id) {
+                currentMentor = newMentor;
+               
+                // Clear chat and restart conversation with new mentor's greeting
+                chatArea.innerHTML = '';
+                stopCurrentAudio();
+                displayMessage('socrates', currentMentor.greeting);
+               
+                userInput.placeholder = `Talking to ${currentMentor.name}...`;
+            }
+        }
+       
+        // --- UI State Management ---
+        function setLoadingState(isLoading, toolMode = false) {
+            sendButton.disabled = isLoading;
+            micButton.disabled = isLoading;
+            userInput.disabled = isLoading;
+            fileInput.disabled = isLoading;
+ 
+            if (isLoading) {
+                btnText.textContent = 'Reflecting...';
+                loadingIndicator.style.display = 'block';
+            } else {
+                btnText.textContent = 'Reflect';
+                loadingIndicator.style.display = 'none';
+            }
+        }
+ 
+
+        // --- Utility for Thinking Indicator ---
+        function displayThinkingIndicator(isTool = false) {
+            const bubble = document.createElement('div');
+            bubble.id = 'thinking-indicator';
+            bubble.className = 'message-bubble socrates-message self-start bg-gray-100 text-gray-700';
+            bubble.innerHTML = `
+                <div class="flex items-center">
+                    <svg class="animate-spin h-5 w-5 mr-3 text-primary-color" xmlns=http://www.w3.org/2000/svg fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p>${currentMentor.name + ' is reflecting...'}</p>
+                </div>
+            `;
+            chatArea.appendChild(bubble);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+ 
+        function removeThinkingIndicator() {
+            const indicator = document.getElementById('thinking-indicator');
+            if (indicator) {
+                indicator.remove();
+            }
+        }
+ 
+
+        // --- Event Listeners and Chat Logic ---
+ 
+        userInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !sendButton.disabled) {
+                sendMessage();
+            }
+        });
+ 
+        fileInput.addEventListener('change', handleFileUpload);
+ 
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) {
+                attachedFileContent = null;
+                fileNameDisplay.textContent = '';
+                fileNameDisplay.classList.add('hidden');
+                return;
+            }
+ 
+            if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+                console.error(`File size exceeds ${MAX_FILE_SIZE_MB}MB limit.`);
+                fileInput.value = '';
+                attachedFileContent = null;
+                fileNameDisplay.textContent = `Error: File too large (> ${MAX_FILE_SIZE_MB}MB).`;
+                fileNameDisplay.classList.remove('hidden');
+                setTimeout(() => fileNameDisplay.classList.add('hidden'), 5000);
+                return;
+            }
+ 
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                attachedFileContent = e.target.result;
+                fileNameDisplay.textContent = `Attached: ${file.name}`;
+                fileNameDisplay.classList.remove('hidden');
+            };
+            reader.onerror = () => {
+                console.error('Error reading file.');
+                fileInput.value = '';
+                attachedFileContent = null;
+            };
+            reader.readAsText(file);
+        }
+ 
+        function displayMessage(sender, text, isToolOutput = false) {
+            const isUser = sender === 'user';
+            const bubble = document.createElement('div');
+           
+            if (isToolOutput) {
+                // This case is unlikely now that tools are removed, but kept for robustness
+                bubble.className = 'message-bubble tool-message self-start tool-output';
+                bubble.innerHTML = text;
+                chatArea.appendChild(bubble);
+                chatArea.scrollTop = chatArea.scrollHeight;
+                return;
+            }
+           
+            bubble.className = 'message-bubble ' + (isUser ? 'user-message self-end' : 'socrates-message self-start');
+ 
+            const speakerName = isUser ? 'You' : currentMentor.name.split(' ')[0]; // Use first name/title
+ 
+            if (!isUser) {
+                const textContainer = document.createElement('div');
+                textContainer.className = 'flex-1 socrates-text-content';
+ 
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'font-bold text-sm text-gray-600 block mb-1';
+                nameSpan.textContent = speakerName;
+                textContainer.appendChild(nameSpan);
+ 
+                let formattedText = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                formattedText = wrapWordsForHighlighting(formattedText);
+               
+                const content = document.createElement('p');
+                content.innerHTML = formattedText;
+                textContainer.appendChild(content);
+ 
+                const speakButton = document.createElement('button');
+                speakButton.className = 'speak-btn ml-3 p-1 rounded-full text-gray-400 hover:text-primary-color transition duration-150';
+                speakButton.title = `Listen to ${speakerName}`;
+                speakButton.setAttribute('onclick', 'speakFromElement(this)');
+                // Speaker Icon SVG
+                speakButton.innerHTML = '<svg xmlns=http://www.w3.org/2000/svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="speaker-icon"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a4.99 4.99 0 0 1 0 7.07"></path></svg>';
+               
+                const wrapper = document.createElement('div');
+                wrapper.className = 'flex justify-between items-start';
+                wrapper.appendChild(textContainer);
+                wrapper.appendChild(speakButton);
+ 
+                bubble.appendChild(wrapper);
+ 
+            } else {
+                const formattedText = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                const content = document.createElement('p');
+                content.innerHTML = formattedText;
+                bubble.appendChild(content);
+            }
+ 
+            chatArea.appendChild(bubble);
+            chatArea.scrollTop = chatArea.scrollHeight;
+            return isUser ? null : bubble;
+        }
+       
+        // --- CORE CHAT FUNCTION ---
+        async function sendMessage() {
+            const userQuery = userInput.value.trim();
+            const fileContext = attachedFileContent;
+ 
+            if (!userQuery && !fileContext) return;
+ 
+            stopCurrentAudio(); // Stop any audio currently playing
+           
+            // 1. Display user message
+            let fullUserText = userQuery;
+            if (fileContext) {
+                fullUserText += ` (Context from file: ${fileInput.files[0].name})`;
+            }
+            displayMessage('user', fullUserText);
+ 
+            // 2. Prepare API contents
+            const contents = [];
+           
+            // Prepend file context into the conversation parts
+            let queryWithContext = userQuery;
+            if (fileContext) {
+                // Ensure the file context is clearly separated from the user query for the model
+                queryWithContext = `User Question: ${userQuery}\n\n---START CONTEXT/REFERENCE DOCUMENT---\n${fileContext}\n---END CONTEXT/REFERENCE DOCUMENT---\n\nRespond only to the user's question, using the context provided above to inform your advice, maintaining your persona and following all constraints.`;
+               
+                // Reset file attachment after use
+                fileInput.value = '';
+                attachedFileContent = null;
+                fileNameDisplay.classList.add('hidden');
+            }
+            contents.push({ text: queryWithContext });
+ 
+
+            // 3. Clear input and set UI state
+            userInput.value = '';
+            setLoadingState(true, false);
+ 
+            // 4. Display Thinking Indicator
+            displayThinkingIndicator(false);
+ 
+            let responseText = "Alas, the connection to the external world has been lost. The network prevents my response.";
+ 
+            try {
+                const apiUrl = `${API_URL_BASE}${MODEL_NAME}:generateContent?key=${apiKey}`;
+ 
+                const payload = {
+                    contents: [{ parts: contents }],
+                    systemInstruction: {
+                        parts: [{ text: currentMentor.instruction }] // Use selected mentor's instruction
+                    },
+                };
+ 
+                const MAX_RETRIES = 5;
+                for (let i = 0; i < MAX_RETRIES; i++) {
+                    try {
+                        const response = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+ 
+                        if (!response.ok) {
+                            throw new Error(`API error: ${response.statusText}`);
+                        }
+ 
+                        const result = await response.json();
+                        const candidate = result.candidates?.[0];
+ 
+                        if (candidate && candidate.content?.parts?.[0]?.text) {
+                            responseText = candidate.content.parts[0].text;
+                            break; // Success
+                        } else {
+                             console.error("Gemini response structure was unexpected:", result);
+                             responseText = "Halt! The scroll of wisdom appears blank. Let us re-examine the query.";
+                             break;
+                        }
+ 
+                    } catch (error) {
+                        console.error(`Attempt ${i + 1} failed:`, error);
+                        if (i < MAX_RETRIES - 1) {
+                            const delay = Math.pow(2, i) * 1000;
+                            await new Promise(resolve => setTimeout(resolve, delay));
+                        } else {
+                            throw new Error("Maximum retries reached. The connection to the Oracle is unstable.");
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error("Fatal API Error:", error);
+            } finally {
+                // 5. Remove thinking indicator
+                removeThinkingIndicator();
+ 
+                // 6. Display Mentor's response
+                displayMessage('socrates', responseText);
+               
+                // 7. Reset UI
+                setLoadingState(false, false);
+                userInput.focus();
+            }
+        }
+       
+        // Initialize App
+        window.onload = () => {
+            populateMentorDropdown();
+            // Display initial greeting
+            displayMessage('socrates', currentMentor.greeting);
+            userInput.focus();
+        };
+ 
+    </script>
+</body>
+</html>
