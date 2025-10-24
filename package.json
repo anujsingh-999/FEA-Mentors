@@ -1,0 +1,7 @@
+{
+  "type": "module",
+  "name": "fea-mentors",
+  "version": "1.0.0",
+  "description": "FEA Mentors chatbot application",
+  "main": "index.js"
+}
