@@ -4,72 +4,85 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+    return res.status(200).end();
   }
 
   if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed' });
-    return;
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
     const { message, mentorId } = req.body;
 
     if (!message) {
-      res.status(400).json({ error: 'Message required' });
-      return;
+      return res.status(400).json({ error: 'Message is required' });
     }
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      res.status(500).json({ error: 'API key missing' });
-      return;
+      return res.status(500).json({ error: 'API key not found in environment' });
     }
 
-    const mentors = {
-      akshay: 'You are a Socratic mentor. Ask reflective questions. Keep under 50 words.',
-      deepak: 'You are an action coach. Focus on next steps. Keep under 50 words.',
-      anmol: 'You are a Stoic guide. Separate control from non-control. Keep under 50 words.',
-      neetu: 'You are a virtue mentor. Guide toward balance. Keep under 50 words.'
+    const mentorPrompts = {
+      akshay: 'You are Akshay Pratap Singh. Ask one reflective question. Max 50 words.',
+      deepak: 'You are Deepak Chopra. Suggest one next action. Max 50 words.',
+      anmol: 'You are Anmol Singh. Separate what they control. Max 50 words.',
+      neetu: 'You are Neetu Mann. Find the balanced approach. Max 50 words.'
     };
 
-    const instruction = mentors[mentorId] || mentors.akshay;
+    const systemPrompt = mentorPrompts[mentorId] || mentorPrompts.akshay;
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-
-    const body = {
+    const requestBody = JSON.stringify({
       contents: [{
-        parts: [{ text: message }]
+        parts: [{
+          text: message
+        }]
       }],
       systemInstruction: {
-        parts: [{ text: instruction }]
+        parts: [{
+          text: systemPrompt
+        }]
       }
-    };
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
     });
 
-    const data = await response.json();
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
 
-    if (!response.ok) {
-      res.status(500).json({ error: 'Gemini error', details: data });
-      return;
+    const geminiRes = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: requestBody
+    });
+
+    const responseData = await geminiRes.json();
+
+    if (!geminiRes.ok) {
+      return res.status(500).json({
+        error: 'Gemini API failed',
+        status: geminiRes.status,
+        message: responseData?.error?.message || 'Unknown error'
+      });
     }
 
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    const mentorResponse = responseData?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-    if (!text) {
-      res.status(500).json({ error: 'No response' });
-      return;
+    if (!mentorResponse) {
+      return res.status(500).json({
+        error: 'No response text from Gemini',
+        data: responseData
+      });
     }
 
-    res.status(200).json({ response: text });
+    return res.status(200).json({
+      response: mentorResponse
+    });
 
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({
+      error: 'Server error',
+      message: error?.message || 'Unknown error',
+      type: error?.name || 'Error'
+    });
   }
 }
